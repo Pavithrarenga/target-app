@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do List</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        .todo-form { margin-bottom: 20px; }
+        .todo-input { width: 70%; padding: 10px; }
+        .add-btn { padding: 10px 20px; }
+        .todo-item { display: flex; align-items: center; padding: 10px; border: 1px solid #ddd; margin: 5px 0; }
+        .todo-text { flex: 1; margin: 0 10px; }
+        .completed { text-decoration: line-through; color: #888; }
+        .delete-btn { background: #ff4444; color: white; border: none; padding: 5px 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>To-Do List</h1>
+    
+    <div class="todo-form">
+        <input type="text" id="todoInput" class="todo-input" placeholder="Enter a new task...">
+        <button onclick="addTodo()" class="add-btn">Add</button>
+    </div>
+    
+    <div id="todoList"></div>
+
+    <script>
+        let todos = [];
+
+        async function loadTodos() {
+            const response = await fetch('/api/todos');
+            todos = await response.json();
+            renderTodos();
+        }
+
+        async function addTodo() {
+            const input = document.getElementById('todoInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const response = await fetch('/api/todos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            
+            const newTodo = await response.json();
+            todos.push(newTodo);
+            input.value = '';
+            renderTodos();
+        }
+
+        async function toggleTodo(id) {
+            const todo = todos.find(t => t.id === id);
+            const response = await fetch(`/api/todos/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: !todo.completed })
+            });
+            
+            const updatedTodo = await response.json();
+            const index = todos.findIndex(t => t.id === id);
+            todos[index] = updatedTodo;
+            renderTodos();
+        }
+
+        async function deleteTodo(id) {
+            await fetch(`/api/todos/${id}`, { method: 'DELETE' });
+            todos = todos.filter(t => t.id !== id);
+            renderTodos();
+        }
+
+        function renderTodos() {
+            const todoList = document.getElementById('todoList');
+            todoList.innerHTML = todos.map(todo => `
+                <div class="todo-item">
+                    <input type="checkbox" ${todo.completed ? 'checked' : ''} 
+                           onchange="toggleTodo(${todo.id})">
+                    <span class="todo-text ${todo.completed ? 'completed' : ''}">${todo.text}</span>
+                    <button class="delete-btn" onclick="deleteTodo(${todo.id})">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('todoInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addTodo();
+        });
+
+        loadTodos();
+    </script>
+</body>
+</html>
